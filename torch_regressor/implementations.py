@@ -32,7 +32,7 @@ class LogisticRegressor(AbstaractRegressor):
     """Logistic regressor for binary classification problems"""
 
     def __init__(
-        self, num_features: int, threshold: float, weights: Union[None, torch.tensor] = None, 
+        self, num_features: int, threshold: float = 0.5, weights: Union[None, torch.tensor] = None, 
         bias: Union[None, torch.tensor] = None, precission: str = "full", device: str = "cuda:0", verbose: bool = True
     ) -> None:
         """Logistic Regression instance initialisation (with elastic penalty)
