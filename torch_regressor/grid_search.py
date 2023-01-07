@@ -124,8 +124,8 @@ class GridSearch:
             train = to_polynom(self.__train_x[:, 0], polynom_order)
             test = to_polynom(self.__test_x[:, 0], polynom_order)
             for dim in range(1, self.__train_x.shape[1]):
-                train = np.hstack([train, to_polynom(self.__train_x[:, dim], polynom_order)])
-                test = np.hstack([test, to_polynom(self.__test_x[:, 0], polynom_order)])
+                train = np.hstack([train, to_polynom(self.__train_x[:, dim])])
+                test = np.hstack([test, to_polynom(self.__test_x[:, 0])])
         else:
             train = self.__train_x.copy()
             test = self.__test_x.copy()
