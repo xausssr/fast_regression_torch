@@ -1,7 +1,7 @@
 import itertools
 import os
 import pickle
-from typing import Any, Callable, ClassVar, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union
 
 import numpy as np
 import pandas as pd

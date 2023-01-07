@@ -1,9 +1,9 @@
-from typing import Any, Callable, List, Tuple, Union
+from typing import Union
 
 import numpy as np
 import pandas as pd
 import torch
-from torch.nn.functional import sigmoid
+from torch import sigmoid
 
 from torch_regressor.abstaract_regressor import AbstaractRegressor, human_shape
 
@@ -25,7 +25,7 @@ class ElasticRegressor(AbstaractRegressor):
             device (str, optional): Device for calculations. Defaults to "cuda:0".
             verbose (bool): Log information. Defaults to True.
         """
-        super(ElasticRegressor).__init__(num_features, weights, bias, precission, device, verbose)
+        super().__init__(num_features, weights, bias, precission, device, verbose)
 
 
 class LogisticRegressor(AbstaractRegressor):
@@ -46,10 +46,10 @@ class LogisticRegressor(AbstaractRegressor):
             device (str, optional): Device for calculations. Defaults to "cuda:0".
             verbose (bool): Log information. Defaults to True
         """
-        super(LogisticRegressor).__init__(num_features, weights, bias, precission, device, verbose)
+        super().__init__(num_features, weights, bias, precission, device, verbose)
         
         self.threshold = threshold
-        self.__epsilon = 1e-6
+        self.epsilon = 1e-6
 
     def __loss(self, yhat: torch.tensor, y:torch.tensor) -> torch.tensor:
         """General loss for optimisation
@@ -63,10 +63,10 @@ class LogisticRegressor(AbstaractRegressor):
         """
 
         assert self.__prepare_to_fit, f"Not prepared to fit, call .fit_configure(...)"
-        l1_term = self.__l1_penalty * torch.sum(torch.abs(self.__weights))
-        l2_term = (self.__l2_penalty / 2) * torch.sum(torch.square(self.__weights))
+        l1_term = self.l1_penalty * torch.sum(torch.abs(self.weights))
+        l2_term = (self.l2_penalty / 2) * torch.sum(torch.square(self.weights))
 
-        main_term = -(y * torch.log(yhat + self.__epsilon) + (1 - y) * torch.log(1 - yhat + self.__epsilon)).mean()
+        main_term = -(y * torch.log(yhat + self.epsilon) + (1 - y) * torch.log(1 - yhat + self.epsilon)).mean()
         return main_term + l1_term+ l2_term
 
     def __forward(self, x: torch.tensor) -> torch.tensor:
@@ -78,7 +78,7 @@ class LogisticRegressor(AbstaractRegressor):
         Returns:
             torch.tensor: predictions
         """
-        return sigmoid(x @ self.__weights + self.__bias)
+        return sigmoid(x @ self.weights + self.bias)
 
     def predict(self, x: Union[np.ndarray, pd.core.frame.DataFrame]) -> Union[np.ndarray, pd.core.frame.DataFrame]:
         """Predict class by input data. Return in same type.
@@ -93,18 +93,18 @@ class LogisticRegressor(AbstaractRegressor):
         return_flag_pd = False
         if isinstance(x, np.ndarray):
             assert x.ndim == 2, f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
-        assert x.shape[1] == self.__weights.shape[0], f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
+        assert x.shape[1] == self.weights.shape[0], f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
         
         if isinstance(x, pd.core.frame.DataFrame):
             x = x.values.astype(np.float32)
             return_flag_pd = True
 
         x = torch.tensor(x)
-        if self.__precission == "half":
+        if self.precission == "half":
             x = x.half()
-        x = x.to(self.__device)
+        x = x.to(self.device)
         
-        result = (sigmoid((x @ self.__weights + self.__bias)).cpu().detach().numpy().flatten() >= self.threshold).astype(np.float32)
+        result = (sigmoid((x @ self.weights + self.bias)).cpu().detach().numpy().flatten() >= self.threshold).astype(np.float32)
         if return_flag_pd:
             result = pd.core.frame.DataFrame({"predictions": result})
         return result
@@ -122,18 +122,18 @@ class LogisticRegressor(AbstaractRegressor):
         return_flag_pd = False
         if isinstance(x, np.ndarray):
             assert x.ndim == 2, f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
-        assert x.shape[1] == self.__weights.shape[0], f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
+        assert x.shape[1] == self.weights.shape[0], f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
         
         if isinstance(x, pd.core.frame.DataFrame):
             x = x.values.astype(np.float32)
             return_flag_pd = True
 
         x = torch.tensor(x)
-        if self.__precission == "half":
+        if self.precission == "half":
             x = x.half()
-        x = x.to(self.__device)
+        x = x.to(self.device)
         
-        result = sigmoid((x @ self.__weights + self.__bias)).cpu().detach().numpy().flatten()
+        result = sigmoid((x @ self.weights + self.bias)).cpu().detach().numpy().flatten()
         if return_flag_pd:
             result = pd.core.frame.DataFrame({"predictions": result})
         return result

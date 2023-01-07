@@ -54,23 +54,23 @@ class AbstaractRegressor:
         
         self.benchmarks = dict()
         self.regressor_info = ""
-        self.__verbose = verbose
+        self.verbose = verbose
         
         # verification of device
         assert device.split(":")[0] in ['cpu', 'cuda'], f"Unknown device: {device}, use one of ['cpu', 'cuda']"
         if str.isdigit(device.split(":")[-1]) and device.split(":")[0] == "cuda":
             assert int(device.split(":")[-1]) in range(torch.cuda.device_count()),\
                 f"Wrong device idx #{int(device.split(':')[-1])}, available GPU idx: {range(torch.cuda.device_count())}"
-        self.__device = device
+        self.device = device
 
-        if self.__verbose:
-            custom_print("Initialisation", f"Using '{self.__device}' for this instance")
+        if self.verbose:
+            custom_print("Initialisation", f"Using '{self.device}' for this instance")
         
         # check precission
         assert precission in ["full", "half"], f"Wrong precission, use one of ['full', 'half']"
         if precission == "half":
-            assert self.__device.split(":")[0] == "cuda", f"Can't use half precission on cpu"
-        self.__precission = precission
+            assert self.device.split(":")[0] == "cuda", f"Can't use half precission on cpu"
+        self.precission = precission
 
         # verification of weights and bias
         if weights is not None or bias is not None:
@@ -82,24 +82,24 @@ class AbstaractRegressor:
                 f"Wrong weights shape: [{human_shape(weights)}], need [num_features x 1]"
             assert bias.shape[0] == 1,\
                 f"Wrong bias shape: [{human_shape(bias)}], need [1]"
-            self.__weights = weights.to(self.__device)
-            self.__bias = bias.to(self.__device)
+            self.weights = weights.to(self.device)
+            self.bias = bias.to(self.device)
         else:
-            self.__weights = torch.zeros(num_features, 1).to(self.__device)
-            self.__bias = torch.zeros(1).to(self.__device)
+            self.weights = torch.zeros(num_features, 1).to(self.device)
+            self.bias = torch.zeros(1).to(self.device)
         
-        if self.__precission == "half":
-            self.__weights = self.__weights.half()
-            self.__bias = self.__bias.half()
+        if self.precission == "half":
+            self.weights = self.weights.half()
+            self.bias = self.bias.half()
 
         if verbose:
             custom_print(
-                "Initialisation", f"Using '{self.__precission}' for this instance, amount of memory weights: "
-                f"{human_size(self.__weights)}, biases: {human_size(self.__bias)}"
+                "Initialisation", f"Using '{self.precission}' for this instance, amount of memory weights: "
+                f"{human_size(self.weights)}, biases: {human_size(self.bias)}"
             )
         self.prepare_to_fit = False
     
-    def __validate_data(
+    def validate_data(
         self, train_data: Union[pd.core.frame.DataFrame, np.ndarray], train_labels: Union[pd.core.frame.DataFrame, np.ndarray],
         val_data: Union[pd.core.frame.DataFrame, np.ndarray], val_labels: Union[pd.core.frame.DataFrame, np.ndarray]
     ) -> None:
@@ -115,7 +115,7 @@ class AbstaractRegressor:
             f"Non valid input train data type: {type(train_data)}, must be one of [np.ndarray, pd.core.frame.DataFrame]"
         assert isinstance(train_labels, np.ndarray) or isinstance(train_labels, pd.core.frame.DataFrame),\
             f"Non valid input train labels type: {type(train_labels)}, must be one of [np.ndarray, pd.core.frame.DataFrame]"
-        assert isinstance(val_data, np.ndarray) or isinstance(train_data, pd.core.frame.DataFrame),\
+        assert isinstance(val_data, np.ndarray) or isinstance(val_data, pd.core.frame.DataFrame),\
             f"Non valid input validation data type: {type(val_data)}, must be one of [np.ndarray, pd.core.frame.DataFrame]"
         assert isinstance(val_labels, np.ndarray) or isinstance(val_labels, pd.core.frame.DataFrame),\
             f"Non valid input validation labels type: {type(val_labels)}, must be one of [np.ndarray, pd.core.frame.DataFrame]"
@@ -132,7 +132,7 @@ class AbstaractRegressor:
             assert val_labels.ndim == 2, f"Wrong val labels shape [{human_shape(val_labels)}], need [num_objects x 1]"
         assert val_data.shape[0] == val_labels.shape[0], f"Non equal lenth of val data and val labels ({val_data.shape[0]}!={val_labels.shape[0]})"
 
-        if self.__verbose:
+        if self.verbose:
             custom_print(
                 "Data validation", 
                 f"Train set is correct, train data: [{human_shape(train_data)}] - {human_size(train_data)} "
@@ -144,18 +144,18 @@ class AbstaractRegressor:
                 f"val labels: [{human_shape(val_labels)}] - {human_size(val_labels)}"
             )
 
-        self.__train_data = train_data.to_numpy().astype(np.float32) if isinstance(train_data, pd.core.frame.DataFrame) else train_data.astype(np.float32)
-        self.__train_labels = train_labels.to_numpy().astype(np.float32) if isinstance(train_labels, pd.core.frame.DataFrame) else train_labels.astype(np.float32)
-        self.__val_data = val_data.to_numpy().astype(np.float32) if isinstance(val_data, pd.core.frame.DataFrame) else val_data.astype(np.float32)
-        self.__val_labels = val_labels.to_numpy().astype(np.float32) if isinstance(val_labels, pd.core.frame.DataFrame) else val_labels.astype(np.float32)
-        if (len(self.__train_data) > 100_000 or len(self.__val_data) > 100_000) and self.__precission == "half":
-            if self.__verbose:
+        self.train_data = train_data.to_numpy().astype(np.float32) if isinstance(train_data, pd.core.frame.DataFrame) else train_data.astype(np.float32)
+        self.train_labels = train_labels.to_numpy().astype(np.float32) if isinstance(train_labels, pd.core.frame.DataFrame) else train_labels.astype(np.float32)
+        self.val_data = val_data.to_numpy().astype(np.float32) if isinstance(val_data, pd.core.frame.DataFrame) else val_data.astype(np.float32)
+        self.val_labels = val_labels.to_numpy().astype(np.float32) if isinstance(val_labels, pd.core.frame.DataFrame) else val_labels.astype(np.float32)
+        if (len(self.train_data) > 100_000 or len(self.val_data) > 100_000) and self.precission == "half":
+            if self.verbose:
                 custom_print("Data validation", "WARNING Data is large, auto fallback to 'full' precission")
-                self.__weights = self.__weights.float()
-                self.__bias = self.__bias.float()
-                self.__precission = "full"
+                self.weights = self.weights.float()
+                self.bias = self.bias.float()
+                self.precission = "full"
 
-    def __validate_batch(self) -> dict:
+    def validate_batch(self) -> dict:
         """Validate input data (train and validation)
 
         Returns:
@@ -163,28 +163,28 @@ class AbstaractRegressor:
         """
         
         mem_info = {}
-        if self.__precission == "half":
-            self.__train_data = torch.tensor(self.__train_data).half().to(self.__device)
-            self.__train_labels = torch.tensor(self.__train_labels).half().to(self.__device)
-            self.__val_data = torch.tensor(self.__val_data).half().to(self.__device)
-            self.__val_labels = torch.tensor(self.__val_labels).half().to(self.__device)
+        if self.precission == "half":
+            self.train_data = torch.tensor(self.train_data).half().to(self.device)
+            self.train_labels = torch.tensor(self.train_labels).half().to(self.device)
+            self.val_data = torch.tensor(self.val_data).half().to(self.device)
+            self.val_labels = torch.tensor(self.val_labels).half().to(self.device)
         else:
-            self.__train_data = torch.tensor(self.__train_data).to(self.__device)
-            self.__train_labels = torch.tensor(self.__train_labels).to(self.__device)
-            self.__val_data = torch.tensor(self.__val_data).to(self.__device)
-            self.__val_labels = torch.tensor(self.__val_labels).to(self.__device)
-        self.__batch_fit(self.__train_data, self.__train_labels)
-        self.__batch_val(self.__val_data, self.__val_labels)
+            self.train_data = torch.tensor(self.train_data).to(self.device)
+            self.train_labels = torch.tensor(self.train_labels).to(self.device)
+            self.val_data = torch.tensor(self.val_data).to(self.device)
+            self.val_labels = torch.tensor(self.val_labels).to(self.device)
+        self.batch_fit(self.train_data, self.train_labels)
+        self.batch_val(self.val_data, self.val_labels)
 
-        mem_info["train_batch_input"] = human_size(self.__train_data)
-        mem_info["train_batch_label"] = human_size(self.__train_labels)
-        mem_info["val_batch_input"] = human_size(self.__val_data)
-        mem_info["val_batch_label"] = human_size(self.__val_labels)
+        mem_info["train_batch_input"] = human_size(self.train_data)
+        mem_info["train_batch_label"] = human_size(self.train_labels)
+        mem_info["val_batch_input"] = human_size(self.val_data)
+        mem_info["val_batch_label"] = human_size(self.val_labels)
         mem_info["grad_weights"] = human_size(self.__grad_weight)
         mem_info["grad_bias"] = human_size(self.__grad_bias)
         return mem_info
 
-    def __forward(self, x: torch.tensor) -> torch.tensor:
+    def forward(self, x: torch.tensor) -> torch.tensor:
         """Forward pass
 
         Args:
@@ -193,9 +193,9 @@ class AbstaractRegressor:
         Returns:
             torch.tensor: predictions
         """
-        return x @ self.__weights + self.__bias
+        return x @ self.weights + self.bias
 
-    def __loss(self, yhat: torch.tensor, y:torch.tensor) -> torch.tensor:
+    def loss(self, yhat: torch.tensor, y:torch.tensor) -> torch.tensor:
         """General loss for optimisation
 
         Args:
@@ -206,12 +206,12 @@ class AbstaractRegressor:
             torch.tensor: loss value
         """
 
-        assert self.__prepare_to_fit, f"Not prepared to fit, call .fit_configure(...)"
-        l1_term = self.__l1_penalty * torch.sum(torch.abs(self.__weights))
-        l2_term = (self.__l2_penalty / 2) * torch.sum(torch.square(self.__weights))
+        assert self.prepare_to_fit, f"Not prepared to fit, call .fit_configure(...)"
+        l1_term = self.l1_penalty * torch.sum(torch.abs(self.weights))
+        l2_term = (self.l2_penalty / 2) * torch.sum(torch.square(self.weights))
         return torch.square(yhat - y).mean() + l1_term + l2_term
 
-    def __grad_step(self, yhat: torch.tensor, y: torch.tensor, x: torch.tensor) -> torch.tensor:
+    def grad_step(self, yhat: torch.tensor, y: torch.tensor, x: torch.tensor) -> torch.tensor:
         """Basic gradient step (for MSE error)
 
         Args:
@@ -225,15 +225,15 @@ class AbstaractRegressor:
         self.__grad_weight = 2 * (x.T @ (y - yhat)) / y.shape[0] 
         self.__grad_bias = (y - yhat).sum() / y.shape[0]
     
-    def __update(self) -> None:
+    def update(self) -> None:
         """Basic update weights and biases
         """
-        l2_term = self.__l2_penalty * torch.sum(self.__weights)
-        self.__weights += self.__learning_rate * (self.__grad_weight + torch.sign(self.__weights) * self.__l1_penalty + l2_term)
-        self.__bias += self.__learning_rate * self.__grad_bias
+        l2_term = self.l2_penalty * torch.sum(self.weights)
+        self.weights += self.learning_rate * (self.__grad_weight + torch.sign(self.weights) * self.l1_penalty + l2_term)
+        self.bias += self.learning_rate * self.__grad_bias
 
     @profile(operation='optim_step')
-    def __batch_fit(self, x: torch.tensor, y: torch.tensor) -> Tuple[float, torch.tensor]:
+    def batch_fit(self, x: torch.tensor, y: torch.tensor) -> Tuple[float, torch.tensor]:
         """Basic method for and update weights
 
         Args:
@@ -243,13 +243,13 @@ class AbstaractRegressor:
         Returns:
             Tuple[float, torch.tensor]: cost value and predictions
         """
-        yhat = self.__forward(x)
-        self.__grad_step(yhat,  y, x) 
-        self.__update()
-        return self.__loss(yhat, y).mean(), yhat
+        yhat = self.forward(x)
+        self.grad_step(yhat,  y, x) 
+        self.update()
+        return self.loss(yhat, y).mean(), yhat
 
     @profile(operation='val_step')
-    def __batch_val(self, x: torch.tensor, y: torch.tensor) -> Tuple[float, torch.tensor]:
+    def batch_val(self, x: torch.tensor, y: torch.tensor) -> Tuple[float, torch.tensor]:
         """Basic validation step
 
         Args:
@@ -259,8 +259,8 @@ class AbstaractRegressor:
         Returns:
             Tuple[float, torch.tensor]: cost value and predictions
         """
-        yhat = self.__forward(x)
-        return self.__loss(yhat, y).mean(), yhat
+        yhat = self.forward(x)
+        return self.loss(yhat, y).mean(), yhat
 
     def fit_configure(
         self, train_data: Union[pd.core.frame.DataFrame, np.ndarray], train_labels: Union[pd.core.frame.DataFrame, np.ndarray],
@@ -282,16 +282,16 @@ class AbstaractRegressor:
             val_tol (Union[None, float], optional): if set - stop train if validation loss not change (changes > val_tol) for 100 epochs. Defaults to None.
         """
 
-        self.__validate_data(train_data, train_labels, val_data, val_labels)
+        self.validate_data(train_data, train_labels, val_data, val_labels)
 
-        self.__l1_penalty = l1_penalty
-        self.__l2_penalty = l2_penalty
-        self.__learning_rate = learning_rate
-        self.__epochs = epochs
-        self.__val_tol = val_tol
-        self.__prepare_to_fit = True
+        self.l1_penalty = l1_penalty
+        self.l2_penalty = l2_penalty
+        self.learning_rate = learning_rate
+        self.epochs = epochs
+        self.val_tol = val_tol
+        self.prepare_to_fit = True
 
-        mem_info = self.__validate_batch()
+        mem_info = self.validate_batch()
 
         self.regressor_info += "Fit benchmarks info\nMemory:\n"
         for k, v in mem_info.items():
@@ -300,7 +300,7 @@ class AbstaractRegressor:
         for k, v in self.benchmarks.items():
             self.regressor_info += f"{k:20s}:{v:.4f}s\n"
 
-        if self.__verbose:
+        if self.verbose:
             custom_print("Configuration", "Regressor configurate to fit.")
 
     def info(self) -> str:
@@ -325,54 +325,54 @@ class AbstaractRegressor:
             Tuple[List[Any], torch.tensor, torch.tensor, int]: list with callbacks results, best weights, 
                     best bias and best fit iteration (depends of cost on validation batches)
         """
-        if self.__verbose:
+        if self.verbose:
             custom_print("Fit", "Start fit model")
 
         callbacks_holder = {"train": {k.__name__: [] for k in callbacks}, "val": {k.__name__: [] for k in callbacks}}
         callbacks_holder["train"]["optim_cost"] = []
         callbacks_holder["val"]["optim_cost"] = []
 
-        best_weights = torch.clone(self.__weights)
-        best_bias = torch.clone(self.__bias)
+        best_weights = torch.clone(self.weights)
+        best_bias = torch.clone(self.bias)
         best_iter = 0
         min_loss = None
 
-        pbar = tqdm(range(self.__epochs), leave=False, disable=not verbose)
-        for epoch in range(self.__epochs):
+        pbar = tqdm(range(self.epochs), leave=False, disable=not verbose)
+        for epoch in range(self.epochs):
             #break if nan - optimization diverges
-            train_loss, pred_train = self.__batch_fit(self.__train_data, self.__train_labels)
+            train_loss, pred_train = self.batch_fit(self.train_data, self.train_labels)
             if torch.isinf(train_loss).prod():
-                if self.__verbose:
+                if self.verbose:
                     custom_print("Fit Regressor", "Hit nan, fit regression overflow precission, break fitting")
                 break
 
-            val_loss, pred_val = self.__batch_val(self.__val_data, self.__val_labels)
+            val_loss, pred_val = self.batch_val(self.val_data, self.val_labels)
             callbacks_holder["train"]["optim_cost"].append(train_loss.item())
             callbacks_holder["val"]["optim_cost"].append(val_loss.item())
 
             for callback in callbacks:
-                callbacks_holder["train"][callback.__name__].append(callback(pred_train, self.__train_labels))
-                callbacks_holder["val"][callback.__name__].append(callback(pred_val, self.__val_labels))
+                callbacks_holder["train"][callback.__name__].append(callback(pred_train, self.train_labels))
+                callbacks_holder["val"][callback.__name__].append(callback(pred_val, self.val_labels))
             
             if min_loss is None:
                 min_loss = val_loss.item()
-                best_weights = torch.clone(self.__weights)
-                best_bias = torch.clone(self.__bias)
+                best_weights = torch.clone(self.weights)
+                best_bias = torch.clone(self.bias)
                 best_iter = epoch
 
             if min_loss > val_loss.item():
                 min_loss = val_loss.item()
-                best_weights = torch.clone(self.__weights)
-                best_bias = torch.clone(self.__bias)
+                best_weights = torch.clone(self.weights)
+                best_bias = torch.clone(self.bias)
                 best_iter = epoch
 
             pbar.update(1)
             pbar.set_description(f"Train loss: {train_loss:.2f}, val loss: {val_loss:.2f}")
 
-        self.__weights.data = torch.clone(best_weights)
-        self.__bias.data = torch.clone(best_bias)
+        self.weights.data = torch.clone(best_weights)
+        self.bias.data = torch.clone(best_bias)
 
-        if self.__verbose:
+        if self.verbose:
             custom_print("Fit", f"Fit complete, best val loss: {val_loss:.2f}, best iter: {best_iter}")
 
         return callbacks_holder, best_weights, best_bias, best_iter
@@ -390,18 +390,18 @@ class AbstaractRegressor:
         return_flag_pd = False
         if isinstance(x, np.ndarray):
             assert x.ndim == 2, f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
-        assert x.shape[1] == self.__weights.shape[0], f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
+        assert x.shape[1] == self.weights.shape[0], f"Wrong input data [{human_shape(x)}], need [num_objects x num_features]"
         
         if isinstance(x, pd.core.frame.DataFrame):
             x = x.values
             return_flag_pd = True
 
         x = torch.tensor(x.astype(np.float32))
-        if self.__precission == "half":
+        if self.precission == "half":
             x = x.half()
-        x = x.to(self.__device)
+        x = x.to(self.device)
         
-        result = (x @ self.__weights + self.__bias).cpu().detach().numpy().flatten()
+        result = (x @ self.weights + self.bias).cpu().detach().numpy().flatten()
         if return_flag_pd:
             result = pd.core.frame.DataFrame({"predictions": result})
         return result
@@ -430,7 +430,7 @@ class AbstaractRegressor:
 
         if isinstance(x, np.ndarray):
             assert x.ndim == 2, f"Wrong train data [{human_shape(x)}], need [num_objects x num_features]"
-        assert x.shape[1] == self.__weights.shape[0], f"Wrong data data [{human_shape(x)}], need [num_objects x num_features]"
+        assert x.shape[1] == self.weights.shape[0], f"Wrong data data [{human_shape(x)}], need [num_objects x num_features]"
 
         if isinstance(y_true, np.ndarray):
             assert y_true.ndim == 2, f"Wrong input labels [{human_shape(y_true)}], need [num_objects x 1]"
@@ -443,18 +443,18 @@ class AbstaractRegressor:
 
         x = torch.tensor(x.astype(np.float32))
         y_true = torch.tensor(y_true.astype(np.float32))
-        if self.__precission == "half":
+        if self.precission == "half":
             x = x.half()
             y_true = y_true.half()
 
-        x = x.to(self.__device)
-        y_true = y_true.to(self.__device)
+        x = x.to(self.device)
+        y_true = y_true.to(self.device)
         
         callbacks_holder = {}
         callbacks_holder = {"evaluate": {k.__name__: [] for k in callbacks}}
         callbacks_holder["evaluate"]["optim_cost"] = []
 
-        eval_loss, result = self.__batch_val(x, y_true)
+        eval_loss, result = self.batch_val(x, y_true)
         callbacks_holder["evaluate"]["optim_cost"].append(eval_loss.item())
         for callback in callbacks:
             callbacks_holder["evaluate"][callback.__name__].append(callback(result, y_true))
@@ -471,16 +471,16 @@ class AbstaractRegressor:
         assert precission in ["full", 'half'], f"Wrong precission ({precission}), choose one of ['full', 'half']"
 
         if precission == "full":
-            if self.__precission == "half":
-                self.__precission = precission
-                self.__weights = self.__weights.float()
-                self.__bias = self.__bias.float()
+            if self.precission == "half":
+                self.precission = precission
+                self.weights = self.weights.float()
+                self.bias = self.bias.float()
         else:
-            if self.__precission == "full":
-                self.__precission = precission
-                self.__weights = self.__weights.half()
-                self.__bias = self.__bias.half()
-        if self.__verbose:
+            if self.precission == "full":
+                self.precission = precission
+                self.weights = self.weights.half()
+                self.bias = self.bias.half()
+        if self.verbose:
             custom_print("Switch precission", f"Sucessfull switch to {precission}")
 
     def save(self, path: str) -> None:
@@ -495,17 +495,17 @@ class AbstaractRegressor:
 
         pickle.dump(
             {
-                "w": self.__weights.cpu().detach().numpy(), 
-                "b": self.__bias.cpu().detach().numpy(),
-                "l1": self.__l1_penalty,
-                "l2": self.__l2_penalty,
-                "lr": self.__learning_rate,
-                "epochs": self.__epochs,
-                "val_tol": self.__val_tol,
-                "prepare_to_fit": self.__prepare_to_fit,
+                "w": self.weights.cpu().detach().numpy(), 
+                "b": self.bias.cpu().detach().numpy(),
+                "l1": self.l1_penalty,
+                "l2": self.l2_penalty,
+                "lr": self.learning_rate,
+                "epochs": self.epochs,
+                "val_tol": self.val_tol,
+                "prepare_to_fit": self.prepare_to_fit,
                 },
             open(path, "wb"))
-        if self.__verbose:
+        if self.verbose:
             custom_print("Save weights", f"Weight save corectly {path}")
 
     def load(self, path: str) -> None:
@@ -517,17 +517,17 @@ class AbstaractRegressor:
 
         assert os.path.exists(path), f"File not exist {path}"
         data = pickle.load(open(path, "rb"))
-        self.__weights = torch.tensor(data["w"]).float().to(self.__device)
-        self.__bias =  torch.tensor(data["b"]).float().to(self.__device)
-        if self.__precission == "half":
-            self.__weights = self.__weights.half()
-            self.__bias = self.__bias.half()
+        self.weights = torch.tensor(data["w"]).float().to(self.device)
+        self.bias =  torch.tensor(data["b"]).float().to(self.device)
+        if self.precission == "half":
+            self.weights = self.weights.half()
+            self.bias = self.bias.half()
 
-        self.__l1_penalty = data["l1"]
-        self.__l2_penalty = data["l2"]
-        self.__learning_rate = data["lr"]
-        self.__epochs = data["epochs"]
-        self.__val_tol = data["val_tol"]
-        self.__prepare_to_fit = data["prepare_to_fit"]
-        if self.__verbose:
+        self.l1_penalty = data["l1"]
+        self.l2_penalty = data["l2"]
+        self.learning_rate = data["lr"]
+        self.epochs = data["epochs"]
+        self.val_tol = data["val_tol"]
+        self.prepare_to_fit = data["prepare_to_fit"]
+        if self.verbose:
             custom_print("Load weights", f"Weights load correctly")
