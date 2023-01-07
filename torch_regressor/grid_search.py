@@ -116,8 +116,7 @@ class GridSearch:
     def _one_round(self, regression_params, polynom_order):
     # palce params to frame
 
-        polynom_order_str = polynom_order
-        filename = "run_po=" + str(polynom_order_str) + "_" + "_".join([f"{k}={v}" for k, v in regression_params.items()])
+        filename = "run_po=" + str(polynom_order) + "_" + "_".join([f"{k}={v}" for k, v in regression_params.items()])
 
         # apply polynominal
         if polynom_order is not None:
@@ -152,7 +151,7 @@ class GridSearch:
         
         # add to table
         add_row = regression_params.copy()
-        add_row["polynom_order"] = self.__best_order
+        add_row["polynom_order"] = polynom_order
         add_row["best_train_score"] = history["train"]['optim_cost'][best_iter]
         add_row["best_val_score"] = history["val"]['optim_cost'][best_iter]
         add_row["best_iter"] = best_iter
