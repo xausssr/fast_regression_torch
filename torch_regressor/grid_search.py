@@ -26,8 +26,8 @@ def to_polynom(x: np.ndarray, order=1) -> np.ndarray:
     x = np.atleast_1d(x)[:]
     out = np.array([])
     for i in order_range:
-        out = np.append(out, np.power(x,i))
-    return out.reshape(-1, x.size).T.astype(np.float32)
+        out = np.append(out, np.power(x, i))
+    return out.reshape(-1, x.size).T.astype(np.float32).copy()
 
 
 class GridSearch:
@@ -120,12 +120,12 @@ class GridSearch:
         filename = "run_po=" + str(polynom_order_str) + "_" + "_".join([f"{k}={v}" for k, v in regression_params.items()])
 
         # apply polynominal
-        if polynom_order:
+        if polynom_order is not None:
             train = to_polynom(self.__train_x[:, 0], polynom_order)
             test = to_polynom(self.__test_x[:, 0], polynom_order)
             for dim in range(1, self.__train_x.shape[1]):
-                train = np.hstack([train, to_polynom(self.__train_x[:, dim])])
-                test = np.hstack([test, to_polynom(self.__test_x[:, 0])])
+                train = np.hstack([train, to_polynom(self.__train_x[:, dim], polynom_order)])
+                test = np.hstack([test, to_polynom(self.__test_x[:, dim], polynom_order)])
         else:
             train = self.__train_x.copy()
             test = self.__test_x.copy()
